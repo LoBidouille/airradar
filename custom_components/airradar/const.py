@@ -25,8 +25,9 @@ HYSTERESIS_KM = 1.0
 
 ADSB_PROVIDERS = (
     ("ADSB.lol", "https://api.adsb.lol/v2/point/{lat}/{lon}/{radius_nm}"),
-    ("ADSB One", "https://api.adsb.one/v2/point/{lat}/{lon}/{radius_nm}"),
+    ("Airplanes.live", "https://api.airplanes.live/v2/point/{lat}/{lon}/{radius_nm}"),
+    ("adsb.fi", "https://opendata.adsb.fi/api/v3/lat/{lat}/lon/{lon}/dist/{radius_nm}"),
 )
 ADSBDB_URL = "https://api.adsbdb.com/v0/callsign/{callsign}"
 
-USER_AGENT = "HomeAssistant-AirRadar/1.0.1"
+USER_AGENT = "HomeAssistant-AirRadar/1.0.2"
