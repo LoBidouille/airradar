@@ -5,6 +5,7 @@ from __future__ import annotations
 import asyncio
 from collections.abc import Callable
 from datetime import datetime, timedelta, timezone
+import json
 import logging
 import math
 from typing import Any
@@ -18,7 +19,7 @@ from homeassistant.helpers.aiohttp_client import async_get_clientsession
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, UpdateFailed
 
 from .const import (
-    ADSB_URL,
+    ADSB_PROVIDERS,
     ADSBDB_URL,
     CONF_ALTITUDE_M,
     CONF_DISTANCE_KM,
@@ -95,6 +96,7 @@ class AirRadarCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         self._enrichment_cache: dict[str, tuple[datetime, dict[str, str]]] = {}
         self.last_passage: dict[str, Any] | None = None
         self.last_error: str | None = None
+        self.current_provider: str | None = None
 
         super().__init__(
             hass,
@@ -149,64 +151,131 @@ class AirRadarCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         for listener in tuple(self._passage_listeners):
             listener(passage)
 
+    def _clear_http_dns_cache(self) -> None:
+        """Clear aiohttp DNS cache after a transient resolver failure."""
+        connector = self.session.connector
+        clear_dns_cache = getattr(connector, "clear_dns_cache", None)
+        if callable(clear_dns_cache):
+            try:
+                clear_dns_cache()
+                _LOGGER.debug("Cache DNS HTTP vidé après une erreur réseau")
+            except Exception:  # pragma: no cover - defensive for HA connector wrappers
+                _LOGGER.debug("Impossible de vider le cache DNS HTTP", exc_info=True)
+
     async def _async_get_json(
         self, url: str, timeout: int = 10
     ) -> tuple[int, dict[str, Any], dict[str, str]]:
-        """Fetch JSON and return status, content and headers."""
-        try:
-            async with asyncio.timeout(timeout):
-                async with self.session.get(
-                    url,
-                    headers={"Accept": "application/json", "User-Agent": USER_AGENT},
-                ) as response:
-                    headers = dict(response.headers)
-                    if response.status == 204:
-                        return response.status, {}, headers
-                    try:
-                        content = await response.json(content_type=None)
-                    except Exception as err:
-                        raise UpdateFailed("Réponse JSON invalide") from err
-                    if not isinstance(content, dict):
-                        content = {}
-                    return response.status, content, headers
-        except TimeoutError as err:
-            raise UpdateFailed("Délai dépassé lors de l'appel API") from err
-        except ClientError as err:
-            raise UpdateFailed(f"Erreur réseau: {err}") from err
+        """Fetch JSON, retrying once after network/DNS failures."""
+        last_error: Exception | None = None
+
+        for attempt in range(2):
+            try:
+                async with asyncio.timeout(timeout):
+                    async with self.session.get(
+                        url,
+                        headers={"Accept": "application/json", "User-Agent": USER_AGENT},
+                    ) as response:
+                        headers = dict(response.headers)
+                        if response.status == 204:
+                            return response.status, {}, headers
+
+                        body = await response.text()
+                        if not body.strip():
+                            return response.status, {}, headers
+
+                        try:
+                            content = json.loads(body)
+                        except (json.JSONDecodeError, TypeError) as err:
+                            snippet = " ".join(body[:120].split())
+                            raise UpdateFailed(
+                                f"Réponse non JSON (HTTP {response.status}: {snippet or 'vide'})"
+                            ) from err
+
+                        if not isinstance(content, dict):
+                            raise UpdateFailed(
+                                f"Réponse JSON inattendue (HTTP {response.status})"
+                            )
+
+                        return response.status, content, headers
+
+            except TimeoutError as err:
+                last_error = err
+                if attempt == 0:
+                    await asyncio.sleep(0.5)
+                    continue
+            except ClientError as err:
+                last_error = err
+                if attempt == 0:
+                    self._clear_http_dns_cache()
+                    await asyncio.sleep(0.5)
+                    continue
+            except UpdateFailed:
+                raise
+
+        if isinstance(last_error, TimeoutError):
+            raise UpdateFailed("Délai dépassé lors de l'appel API") from last_error
+        raise UpdateFailed(f"Erreur réseau: {last_error}") from last_error
 
     async def _async_fetch_aircraft(self) -> list[dict[str, Any]]:
-        """Fetch aircraft around Home Assistant's home coordinates."""
+        """Fetch aircraft, automatically falling back to another ADS-B provider."""
         lat = float(self.hass.config.latitude)
         lon = float(self.hass.config.longitude)
 
         radius_km = self.distance_limit_km + HYSTERESIS_KM + 2.0
         radius_nm = max(1.0, min(250.0, radius_km / 1.852))
 
-        url = ADSB_URL.format(
-            lat=f"{lat:.6f}",
-            lon=f"{lon:.6f}",
-            radius_nm=f"{radius_nm:.1f}",
-        )
-        status, content, headers = await self._async_get_json(url)
+        failures: list[str] = []
+        retry_after = 60.0
 
-        if status == 429:
-            retry_after = 60.0
-            try:
-                retry_after = max(10.0, min(900.0, float(headers.get("Retry-After", 60))))
-            except (TypeError, ValueError):
-                pass
-            raise UpdateFailed(
-                "Limite de requêtes ADS-B atteinte",
-                retry_after=retry_after,
+        for provider_name, url_template in ADSB_PROVIDERS:
+            url = url_template.format(
+                lat=f"{lat:.6f}",
+                lon=f"{lon:.6f}",
+                radius_nm=f"{radius_nm:.1f}",
             )
 
-        if status != 200:
-            raise UpdateFailed(f"ADSB.lol a répondu HTTP {status}")
+            try:
+                status, content, headers = await self._async_get_json(url)
+            except UpdateFailed as err:
+                failures.append(f"{provider_name}: {err}")
+                continue
 
-        aircraft = content.get("ac", [])
-        if not isinstance(aircraft, list):
-            return []
-        return [item for item in aircraft if isinstance(item, dict)]
+            if status == 429:
+                try:
+                    retry_after = max(
+                        retry_after,
+                        max(10.0, min(900.0, float(headers.get("Retry-After", 60)))),
+                    )
+                except (TypeError, ValueError):
+                    pass
+                failures.append(f"{provider_name}: HTTP 429")
+                continue
+
+            if status != 200:
+                failures.append(f"{provider_name}: HTTP {status}")
+                continue
+
+            aircraft = content.get("ac", [])
+            if not isinstance(aircraft, list):
+                failures.append(f"{provider_name}: champ 'ac' invalide")
+                continue
+
+            if self.current_provider != provider_name:
+                if self.current_provider is not None:
+                    _LOGGER.info(
+                        "Source ADS-B basculée de %s vers %s",
+                        self.current_provider,
+                        provider_name,
+                    )
+                self.current_provider = provider_name
+
+            return [item for item in aircraft if isinstance(item, dict)]
+
+        details = " | ".join(failures) if failures else "aucun détail"
+        raise UpdateFailed(
+            f"Aucune source ADS-B disponible ({details})",
+            retry_after=retry_after,
+        )
 
     async def _async_enrich_callsign(self, callsign: str) -> dict[str, str]:
         """Get airline and route from ADSBDB, with a six-hour cache."""
@@ -426,4 +495,5 @@ class AirRadarCoordinator(DataUpdateCoordinator[dict[str, Any]]):
             "last_passage": self.last_passage,
             "distance_limit_km": max_distance,
             "altitude_limit_m": max_altitude,
+            "adsb_provider": self.current_provider,
         }
