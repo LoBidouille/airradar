@@ -28,13 +28,13 @@ jobs:
           rsvg-convert -w 2048 -h 512 brand_source/logo.svg -o custom_components/airradar/brand/logo@2x.png
           cp custom_components/airradar/brand/icon.png custom_components/airradar/brand/dark_icon.png
           cp custom_components/airradar/brand/icon@2x.png custom_components/airradar/brand/dark_icon@2x.png
-          cp custom_components/airradar/brand/logo.png custom_components/airradar/brand/dark_logo.png
-          cp custom_components/airradar/brand/logo@2x.png custom_components/airradar/brand/dark_logo@2x.png
+          rsvg-convert -w 1024 -h 256 brand_source/dark_logo.svg -o custom_components/airradar/brand/dark_logo.png
+          rsvg-convert -w 2048 -h 512 brand_source/dark_logo.svg -o custom_components/airradar/brand/dark_logo@2x.png
       - name: Commit generated images
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add custom_components/airradar/brand
           git diff --cached --quiet && exit 0
-          git commit -m "Add AirRadar brand images"
+          git commit -m "Update AirRadar brand images"
           git push
