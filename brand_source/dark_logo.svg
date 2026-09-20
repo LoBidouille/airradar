@@ -1,0 +1,17 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 256">
+  <rect width="1024" height="256" fill="none"/>
+  <g>
+    <rect x="8" y="8" width="240" height="240" rx="48" fill="#07121c"/>
+    <g fill="none" stroke="#0b7d5b" stroke-width="3" opacity="0.9">
+      <circle cx="128" cy="128" r="56"/><circle cx="128" cy="128" r="96"/><circle cx="128" cy="128" r="116"/>
+      <path d="M12 128h232M128 12v232"/>
+    </g>
+    <path d="M128 128 L218 52" stroke="#12be7d" stroke-width="5" stroke-linecap="round"/>
+    <circle cx="128" cy="128" r="6" fill="#12be7d"/>
+    <g transform="translate(146 112)" fill="#4291ff">
+      <path d="M0-42 7-13 29 0 29 8 8 5 7 28 17 36 17 41 0 36-17 41-17 36-7 28-8 5-29 8-29 0-7-13z"/>
+    </g>
+  </g>
+  <text x="285" y="132" fill="#f2f8fa" font-family="Arial,Helvetica,sans-serif" font-size="88" font-weight="700">AirRadar</text>
+  <text x="288" y="190" fill="#12b175" font-family="Arial,Helvetica,sans-serif" font-size="28" font-weight="700" letter-spacing="1">AIRCRAFT MONITOR FOR HOME ASSISTANT</text>
+</svg>
