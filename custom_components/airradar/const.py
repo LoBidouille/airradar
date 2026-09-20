@@ -23,7 +23,10 @@ MAX_POLL_INTERVAL = 60
 
 HYSTERESIS_KM = 1.0
 
-ADSB_URL = "https://api.adsb.lol/v2/point/{lat}/{lon}/{radius_nm}"
+ADSB_PROVIDERS = (
+    ("ADSB.lol", "https://api.adsb.lol/v2/point/{lat}/{lon}/{radius_nm}"),
+    ("ADSB One", "https://api.adsb.one/v2/point/{lat}/{lon}/{radius_nm}"),
+)
 ADSBDB_URL = "https://api.adsbdb.com/v0/callsign/{callsign}"
 
-USER_AGENT = "HomeAssistant-AirRadar/1.0"
+USER_AGENT = "HomeAssistant-AirRadar/1.0.1"
