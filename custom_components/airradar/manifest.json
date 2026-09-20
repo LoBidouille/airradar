@@ -1,0 +1,10 @@
+{
+  "domain": "airradar",
+  "name": "AirRadar",
+  "version": "1.0.0",
+  "config_flow": true,
+  "single_config_entry": true,
+  "integration_type": "service",
+  "iot_class": "cloud_polling",
+  "requirements": []
+}

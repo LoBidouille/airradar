@@ -1,0 +1,56 @@
+{
+  "title": "AirRadar",
+  "config": {
+    "step": {
+      "user": {
+        "title": "Configurer AirRadar",
+        "description": "AirRadar surveille les avions autour de la position Maison de Home Assistant via ADSB.lol. L'action de notification est facultative, par exemple `notify.mobile_app_iphone`.",
+        "data": {
+          "distance_km": "Distance d'alerte (km)",
+          "altitude_m": "Altitude maximale d'alerte (m)",
+          "poll_interval": "Fréquence d'interrogation (secondes)",
+          "notifications": "Activer les notifications directes",
+          "notify_service": "Action de notification (facultatif)"
+        },
+        "data_description": {
+          "distance_km": "L'avion doit être à cette distance ou moins pour déclencher un passage.",
+          "altitude_m": "L'avion doit être à cette altitude ou moins pour déclencher un passage.",
+          "poll_interval": "Fréquence des appels ADSB.lol. 15 secondes est recommandé.",
+          "notifications": "Envoie directement une notification au téléphone lorsqu'un nouveau passage est détecté.",
+          "notify_service": "Exemple : `notify.mobile_app_iphone`. Laisser vide pour utiliser uniquement l'entité événement AirRadar."
+        }
+      }
+    },
+    "error": {
+      "invalid_notify_service": "Indique une action commençant par `notify.` ou laisse ce champ vide."
+    },
+    "abort": {
+      "single_instance_allowed": "AirRadar est déjà configuré."
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "Réglages AirRadar",
+        "description": "Modifie les paramètres de surveillance et de notification AirRadar.",
+        "data": {
+          "distance_km": "Distance d'alerte (km)",
+          "altitude_m": "Altitude maximale d'alerte (m)",
+          "poll_interval": "Fréquence d'interrogation (secondes)",
+          "notifications": "Activer les notifications directes",
+          "notify_service": "Action de notification (facultatif)"
+        },
+        "data_description": {
+          "distance_km": "L'avion doit être à cette distance ou moins pour déclencher un passage.",
+          "altitude_m": "L'avion doit être à cette altitude ou moins pour déclencher un passage.",
+          "poll_interval": "Fréquence des appels ADSB.lol.",
+          "notifications": "Envoie directement une notification au téléphone lorsqu'un passage est détecté.",
+          "notify_service": "Exemple : `notify.mobile_app_iphone`."
+        }
+      }
+    },
+    "error": {
+      "invalid_notify_service": "Indique une action commençant par `notify.` ou laisse ce champ vide."
+    }
+  }
+}

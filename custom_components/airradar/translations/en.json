@@ -1,0 +1,56 @@
+{
+  "title": "AirRadar",
+  "config": {
+    "step": {
+      "user": {
+        "title": "Set up AirRadar",
+        "description": "AirRadar monitors aircraft around your Home Assistant home location using ADSB.lol. The notification action is optional; for example `notify.mobile_app_my_phone`.",
+        "data": {
+          "distance_km": "Alert distance (km)",
+          "altitude_m": "Maximum alert altitude (m)",
+          "poll_interval": "Polling interval (seconds)",
+          "notifications": "Enable direct notifications",
+          "notify_service": "Notification action (optional)"
+        },
+        "data_description": {
+          "distance_km": "An aircraft must be within this distance to trigger a passage.",
+          "altitude_m": "An aircraft must be below this altitude to trigger a passage.",
+          "poll_interval": "How often AirRadar queries ADSB.lol. 15 seconds is recommended.",
+          "notifications": "Send a phone notification directly when a new passage is detected.",
+          "notify_service": "Example: `notify.mobile_app_iphone`. Leave empty to use only the AirRadar event entity."
+        }
+      }
+    },
+    "error": {
+      "invalid_notify_service": "Enter an action starting with `notify.` or leave this field empty."
+    },
+    "abort": {
+      "single_instance_allowed": "AirRadar is already configured."
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "AirRadar settings",
+        "description": "Change AirRadar monitoring and notification settings.",
+        "data": {
+          "distance_km": "Alert distance (km)",
+          "altitude_m": "Maximum alert altitude (m)",
+          "poll_interval": "Polling interval (seconds)",
+          "notifications": "Enable direct notifications",
+          "notify_service": "Notification action (optional)"
+        },
+        "data_description": {
+          "distance_km": "An aircraft must be within this distance to trigger a passage.",
+          "altitude_m": "An aircraft must be below this altitude to trigger a passage.",
+          "poll_interval": "How often AirRadar queries ADSB.lol.",
+          "notifications": "Send a phone notification directly when a passage is detected.",
+          "notify_service": "Example: `notify.mobile_app_iphone`."
+        }
+      }
+    },
+    "error": {
+      "invalid_notify_service": "Enter an action starting with `notify.` or leave this field empty."
+    }
+  }
+}
