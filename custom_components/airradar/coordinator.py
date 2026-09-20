@@ -97,6 +97,7 @@ class AirRadarCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         self.last_passage: dict[str, Any] | None = None
         self.last_error: str | None = None
         self.current_provider: str | None = None
+        self._last_api_warning: datetime | None = None
 
         super().__init__(
             hass,
@@ -434,8 +435,46 @@ class AirRadarCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         await self._async_notify(passage)
 
     async def _async_update_data(self) -> dict[str, Any]:
-        """Poll ADS-B and update all AirRadar entities."""
-        raw_aircraft = await self._async_fetch_aircraft()
+        """Poll ADS-B and update all AirRadar entities.
+
+        A temporary outage of every upstream provider must not prevent the
+        integration from loading. Keep the last known data (or an empty
+        snapshot during the very first refresh) and try again on the next poll.
+        """
+        try:
+            raw_aircraft = await self._async_fetch_aircraft()
+        except UpdateFailed as err:
+            self.last_error = str(err)
+            now = datetime.now(timezone.utc)
+
+            if (
+                self._last_api_warning is None
+                or now - self._last_api_warning >= timedelta(minutes=10)
+            ):
+                _LOGGER.warning(
+                    "Sources ADS-B temporairement indisponibles; AirRadar "
+                    "conserve les dernières données et réessaiera automatiquement: %s",
+                    err,
+                )
+                self._last_api_warning = now
+
+            if self.data:
+                stale = dict(self.data)
+                stale["last_error"] = self.last_error
+                stale["adsb_provider"] = self.current_provider
+                return stale
+
+            return {
+                "nearest": None,
+                "aircraft_count": 0,
+                "eligible": [],
+                "alert_active": False,
+                "last_passage": self.last_passage,
+                "distance_limit_km": self.distance_limit_km,
+                "altitude_limit_m": self.altitude_limit_m,
+                "adsb_provider": self.current_provider,
+                "last_error": self.last_error,
+            }
 
         planes: list[dict[str, Any]] = []
         for raw in raw_aircraft:
@@ -487,6 +526,7 @@ class AirRadarCoordinator(DataUpdateCoordinator[dict[str, Any]]):
                 await self._async_process_passage(plane)
 
         self.last_error = None
+        self._last_api_warning = None
         return {
             "nearest": nearest,
             "aircraft_count": len(planes),
@@ -496,4 +536,5 @@ class AirRadarCoordinator(DataUpdateCoordinator[dict[str, Any]]):
             "distance_limit_km": max_distance,
             "altitude_limit_m": max_altitude,
             "adsb_provider": self.current_provider,
+            "last_error": self.last_error,
         }
